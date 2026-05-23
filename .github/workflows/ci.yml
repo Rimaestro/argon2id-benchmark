@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Validate Composer
+        run: composer validate --strict
+
+      - name: PHP Syntax Check
+        run: find app benchmark config database routes -name "*.php" -exec php -l {} \;
+
+      - name: Setup Environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          php artisan migrate --force
+
+      - name: Run Tests
+        run: php artisan test
+
+  python:
+    name: Python Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install pandas scipy matplotlib seaborn
+
+      - name: Python Syntax Check
+        run: python -c "import ast; ast.parse(open('benchmark/analyze_results.py').read()); print('Syntax OK')"
+
+  benchmark-syntax:
+    name: Benchmark Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sodium
+          coverage: none
+
+      - name: Micro Benchmark Syntax
+        run: php -l benchmark/micro_benchmark.php
+
+      - name: Macro Benchmark Syntax
+        run: |
+          composer install --no-interaction --prefer-dist
+          php artisan benchmark:auth --help
