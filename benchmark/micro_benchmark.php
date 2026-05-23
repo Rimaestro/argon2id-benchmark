@@ -1,13 +1,5 @@
 <?php
 
-/**
- * Mikro Benchmark: Mengukur waktu hashing dan verifikasi Argon2id secara murni (PHP CLI).
- * Tanpa framework overhead — murni password_hash() dan password_verify().
- *
- * Output: CSV dengan kolom scenario, memory_cost, time_cost, parallelism, iteration,
- *         hashing_time_ms, verify_time_ms
- */
-
 $scenarios = [
     ['label' => 'A_Baseline',     'memory' => 10240,  'time' => 2, 'parallelism' => 1],
     ['label' => 'B_OWASP_Min',    'memory' => 19456,  'time' => 2, 'parallelism' => 1],
@@ -30,7 +22,7 @@ if (!is_dir($outputDir)) {
 
 $outputFile = $outputDir . '/results_micro_' . date('Y-m-d_H-i-s') . '.csv';
 $fp = fopen($outputFile, 'w');
-fputcsv($fp, ['scenario', 'memory_cost', 'time_cost', 'parallelism', 'iteration', 'hashing_time_ms', 'verify_time_ms']);
+fputcsv($fp, ['scenario', 'memory_cost', 'time_cost', 'parallelism', 'iteration', 'hashing_time_ms', 'verify_time_ms', 'peak_memory_mb']);
 
 echo "=== Argon2id Mikro Benchmark ===\n";
 echo "Iterations: {$iterations} (+ {$warmup} warm-up)\n";
@@ -46,6 +38,18 @@ foreach ($scenarios as $scenario) {
         'threads' => $scenario['parallelism'],
     ];
 
+    // Verifikasi parameter hash
+    $testHash = password_hash($password, PASSWORD_ARGON2ID, $options);
+    $info = password_get_info($testHash);
+    $actualMemory = $info['options']['memory_cost'] ?? null;
+    $actualTime = $info['options']['time_cost'] ?? null;
+    $actualThreads = $info['options']['threads'] ?? null;
+
+    if ($actualMemory !== $scenario['memory'] || $actualTime !== $scenario['time'] || $actualThreads !== $scenario['parallelism']) {
+        echo "PARAM MISMATCH (got m={$actualMemory}, t={$actualTime}, p={$actualThreads}) — SKIPPED\n";
+        continue;
+    }
+
     // Warm-up
     for ($w = 0; $w < $warmup; $w++) {
         password_hash($password, PASSWORD_ARGON2ID, $options);
@@ -53,9 +57,14 @@ foreach ($scenarios as $scenario) {
 
     // Pengukuran
     for ($i = 1; $i <= $iterations; $i++) {
+        $memBefore = memory_get_peak_usage(true);
+
         $start = hrtime(true);
         $hash = password_hash($password, PASSWORD_ARGON2ID, $options);
         $hashTime = (hrtime(true) - $start) / 1e6;
+
+        $memAfter = memory_get_peak_usage(true);
+        $peakMemoryMb = round(($memAfter - $memBefore) / (1024 * 1024), 4);
 
         $start = hrtime(true);
         password_verify($password, $hash);
@@ -69,6 +78,7 @@ foreach ($scenarios as $scenario) {
             $i,
             round($hashTime, 4),
             round($verifyTime, 4),
+            $peakMemoryMb,
         ]);
     }
 

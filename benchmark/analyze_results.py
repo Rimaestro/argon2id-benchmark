@@ -269,10 +269,13 @@ def main():
 
     # === STATISTIK DESKRIPTIF ===
     micro_stats = {}
+    memory_stats = {}
     for scenario in SCENARIO_ORDER:
-        subset = df_micro[df_micro['scenario'] == scenario]['hashing_time_ms']
+        subset = df_micro[df_micro['scenario'] == scenario]
         if len(subset) > 0:
-            micro_stats[scenario] = descriptive_stats(subset)
+            micro_stats[scenario] = descriptive_stats(subset['hashing_time_ms'])
+            if 'peak_memory_mb' in subset.columns:
+                memory_stats[scenario] = descriptive_stats(subset['peak_memory_mb'])
 
     macro_stats = {}
     for scenario in SCENARIO_ORDER:
@@ -281,6 +284,8 @@ def main():
             macro_stats[scenario] = descriptive_stats(subset)
 
     print_stats_table('LAYER 1: MIKRO (PHP CLI Murni) — Waktu Hashing', micro_stats)
+    if memory_stats:
+        print_stats_table('LAYER 1: MIKRO — Peak Memory (MB)', memory_stats)
     print_stats_table('LAYER 2: MAKRO (Laravel HTTP) — Waktu Login', macro_stats)
 
     # === OVERHEAD ===

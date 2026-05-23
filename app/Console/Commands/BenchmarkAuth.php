@@ -68,6 +68,17 @@ class BenchmarkAuth extends Command
             }
             $currentHash = $user->password;
 
+            // Verifikasi parameter hash
+            $info = password_get_info($currentHash);
+            $actualMemory = $info['options']['memory_cost'] ?? null;
+            $actualTime = $info['options']['time_cost'] ?? null;
+            $actualThreads = $info['options']['threads'] ?? null;
+
+            if ($actualMemory !== $scenario['memory'] || $actualTime !== $scenario['time'] || $actualThreads !== $scenario['parallelism']) {
+                $this->warn("  PARAM MISMATCH (got m={$actualMemory}, t={$actualTime}, p={$actualThreads}) — SKIPPED");
+                continue;
+            }
+
             // Warm-up
             for ($w = 0; $w < $warmup; $w++) {
                 Auth::attempt(['email' => $email, 'password' => $password]);
