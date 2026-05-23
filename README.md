@@ -2,7 +2,7 @@
 
 # Argon2id Benchmark
 
-**Implementasi dan Analisis Optimasi Parameter Argon2id pada Sistem Autentikasi Aplikasi Web**
+**Benchmark dan analisis optimasi parameter Argon2id pada sistem autentikasi aplikasi web berbasis Laravel**
 
 ![PHP](https://img.shields.io/badge/PHP-8.3-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
@@ -10,8 +10,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3.51-003B57?logo=sqlite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-Skripsi S1 — **Rio Mayesta** (22SA31A017)
-Program Studi Teknologi Informasi, Universitas Amikom Purwokerto, 2026
+**Rio Mayesta** · [issecrux](https://github.com/issecrux)
 
 </div>
 
@@ -35,7 +34,7 @@ Program Studi Teknologi Informasi, Universitas Amikom Purwokerto, 2026
 
 ## Gambaran Umum
 
-Penelitian ini menguji pengaruh variasi parameter **Argon2id** — *memory cost*, *time cost*, dan *parallelism* — terhadap waktu *hashing* dan waktu verifikasi login pada sistem autentikasi aplikasi web berbasis Laravel.
+Menguji pengaruh variasi parameter **Argon2id** — *memory cost*, *time cost*, dan *parallelism* — terhadap waktu *hashing* dan waktu verifikasi login pada sistem autentikasi aplikasi web berbasis Laravel.
 
 Pendekatan yang digunakan adalah **pengukuran dua layer**:
 
@@ -51,40 +50,28 @@ Pengukuran dilakukan sebanyak **50 iterasi + 10 warm-up** per skenario, menghasi
 
 ## Arsitektur Pengukuran
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      LAYER 1: MIKRO                             │
-│                                                                 │
-│   PHP CLI ──→ password_hash(PASSWORD_ARGON2ID, options)         │
-│             ──→ password_verify(password, hash)                 │
-│             ──→ hrtime(true) → milidetik                        │
-│                                                                 │
-│   Output: hashing_time_ms, verify_time_ms                       │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      LAYER 2: MAKRO                             │
-│                                                                 │
-│   Laravel Artisan ──→ config override parameter                 │
-│                     ──→ Hash::make() → rehash user              │
-│                     ──→ Auth::attempt() → full login flow       │
-│                     ──→ Hash::check() → verify only             │
-│                     ──→ hrtime(true) → milidetik                │
-│                                                                 │
-│   Output: login_time_ms, hash_time_ms                           │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      ANALISIS (Python)                           │
-│                                                                 │
-│   pandas ──→ statistik deskriptif (mean, median, std, CV)       │
-│   scipy  ──→ one-way ANOVA + Welch t-test (Tukey HSD)           │
-│   matplotlib + seaborn ──→ 6 visualisasi (bar, box, overhead)   │
-│                                                                 │
-│   Output: CSV rekap, chart PNG, hasil uji statistik             │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph L1["Layer 1 — Mikro (PHP CLI)"]
+        A1[password_hash] --> A2[password_verify]
+        A2 --> A3[hrtime → ms]
+    end
+
+    subgraph L2["Layer 2 — Makro (Laravel)"]
+        B1[config override parameter] --> B2[Hash::make → rehash user]
+        B2 --> B3[Auth::attempt → full login]
+        B3 --> B4[Hash::check → verify only]
+        B4 --> B5[hrtime → ms]
+    end
+
+    subgraph L3["Analisis (Python)"]
+        C1[pandas → statistik deskriptif] --> C2[scipy → ANOVA + Welch t-test]
+        C2 --> C3[matplotlib + seaborn → 6 chart]
+    end
+
+    L1 -->|CSV mikro| L3
+    L2 -->|CSV makro| L3
+    L3 -->|overhead = makro − mikro| C4[CSV + PNG + terminal]
 ```
 
 ---
@@ -93,7 +80,7 @@ Pengukuran dilakukan sebanyak **50 iterasi + 10 warm-up** per skenario, menghasi
 
 8 skenario dirancang berdasarkan standar **RFC 9106** (IETF) dan **OWASP Password Storage Cheat Sheet** (2024):
 
-| Skenario | Label | memory (KiB) | memory (MiB) | time | p | Sumber Standar |
+| # | Label | memory (KiB) | memory (MiB) | time | p | Sumber Standar |
 |:---:|---|---:|---:|:---:|:---:|---|
 | **A** | Baseline | 10,240 | 10 | 2 | 1 | Laravel default |
 | **B** | OWASP Min | 19,456 | 19 | 2 | 1 | OWASP 2024 minimum (exact) |
@@ -106,19 +93,30 @@ Pengukuran dilakukan sebanyak **50 iterasi + 10 warm-up** per skenario, menghasi
 
 ### Desain Eksperimen
 
-```
-A → B → C → D    Efek peningkatan parameter dari default ke standar
-D → G → H        Isolasi parallelism (p=4, p=2, p=1) dengan m/t sama
-D → E → F        Efek parameter tinggi terhadap waktu hashing
-```
+```mermaid
+flowchart LR
+    subgraph Standar["Pemetaan ke Standar"]
+        direction TB
+        S1["RFC 9106 SECOND<br>m=64MiB, t=3, p=4"] -.->|exact| D
+        S2["OWASP minimum<br>m=19MiB, t=2, p=1"] -.->|exact| B
+        S3["OWASP high-memory<br>m=46MiB, t=1, p=1"] -.->|exact| C
+    end
 
-### Pemetaan ke Standar
+    subgraph Grup1["Efek Peningkatan Parameter"]
+        A["A<br>10 MiB"] --> B["B<br>19 MiB"]
+        B --> C["C<br>46 MiB"]
+        C --> D["D<br>64 MiB"]
+    end
 
-```
-RFC 9106 FIRST RECOMMENDED:   m=2GiB,  t=1, p=4   → Terlalu besar untuk 4GB RAM
-RFC 9106 SECOND RECOMMENDED:  m=64MiB, t=3, p=4   → Skenario D (exact match)
-OWASP 2024 minimum:           m=19MiB, t=2, p=1   → Skenario B (exact match)
-OWASP 2024 high-memory:       m=46MiB, t=1, p=1   → Skenario C (exact match)
+    subgraph Grup2["Isolasi Parallelism"]
+        D --> G["G<br>p=2"]
+        G --> H["H<br>p=1"]
+    end
+
+    subgraph Grup3["Parameter Tinggi"]
+        D --> E["E<br>128 MiB"]
+        E --> F["F<br>256 MiB"]
+    end
 ```
 
 ---
@@ -144,7 +142,6 @@ OWASP 2024 high-memory:       m=46MiB, t=1, p=1   → Skenario C (exact match)
 
 ```
 argon2id-benchmark/
-│
 ├── app/
 │   ├── Console/Commands/
 │   │   └── BenchmarkAuth.php          # Artisan command: makro benchmark
@@ -219,7 +216,7 @@ php artisan tinker
 
 ```php
 >>> Hash::make('test')
-// Harus menghasilkan: $argon2id$v=19$m=10240,t=2,p=1$...
+// Output: $argon2id$v=19$m=10240,t=2,p=1$...
 ```
 
 ---
@@ -328,11 +325,3 @@ Script Python menghasilkan:
 ## License
 
 MIT
-
----
-
-<div align="center">
-
-**Skripsi S1 — Teknologi Informasi — Universitas Amikom Purwokerto — 2026**
-
-</div>
