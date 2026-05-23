@@ -2,7 +2,7 @@
 Analisis Hasil Benchmark Argon2id
 =================================
 Membaca CSV hasil benchmark mikro dan makro, menghitung statistik deskriptif,
-melakukan uji ANOVA dan post-hoc Tukey HSD, serta menghasilkan visualisasi.
+melakukan uji ANOVA dan Welch t-test pairwise, serta menghasilkan visualisasi.
 
 Usage:
     python benchmark/analyze_results.py --micro benchmark/results/results_micro_*.csv \
@@ -10,9 +10,9 @@ Usage:
 
 Output:
     - Tabel statistik deskriptif di terminal
-    - Hasil ANOVA dan Tukey HSD di terminal
+    - Hasil ANOVA dan Welch t-test pairwise di terminal
     - CSV analisis gabungan
-    - 5 chart PNG di benchmark/results/charts/
+    - 6 chart PNG di benchmark/results/charts/
 """
 
 import argparse
