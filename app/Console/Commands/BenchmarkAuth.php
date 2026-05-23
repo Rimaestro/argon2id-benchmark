@@ -60,12 +60,13 @@ class BenchmarkAuth extends Command
                 $user->password = Hash::make($password);
                 $user->save();
             } else {
-                User::create([
+                $user = User::create([
                     'name' => 'Benchmark User',
                     'email' => $email,
                     'password' => Hash::make($password),
                 ]);
             }
+            $currentHash = $user->password;
 
             // Warm-up
             for ($w = 0; $w < $warmup; $w++) {
@@ -89,7 +90,7 @@ class BenchmarkAuth extends Command
 
                 // Hash-only time (for comparison with micro)
                 $hashStart = hrtime(true);
-                Hash::check($password, $user->fresh()->password);
+                Hash::check($password, $currentHash);
                 $hashTime = (hrtime(true) - $hashStart) / 1e6;
 
                 fputcsv($fp, [

@@ -93,7 +93,7 @@ def run_anova(groups: dict) -> tuple:
     return round(f_stat, 4), round(p_value, 6)
 
 
-def run_tukey_hsd(df: pd.DataFrame, value_col: str, group_col: str):
+def run_pairwise_welch(df: pd.DataFrame, value_col: str, group_col: str):
     from itertools import combinations
     groups = df[group_col].unique()
     results = []
@@ -136,10 +136,10 @@ def print_anova_result(title: str, f_stat, p_value):
         print(f"  Result:      NOT SIGNIFICANT (p >= 0.05)")
 
 
-def print_tukey_table(title: str, tukey_df: pd.DataFrame):
-    sig = tukey_df[tukey_df['significant'] == 'Yes']
-    print(f"\n  Tukey HSD (Welch t-test) — {title}")
-    print(f"  Total pasangan: {len(tukey_df)}, Signifikan: {len(sig)}")
+def print_pairwise_table(title: str, pairwise_df: pd.DataFrame):
+    sig = pairwise_df[pairwise_df['significant'] == 'Yes']
+    print(f"\n  Welch t-test pairwise — {title}")
+    print(f"  Total pasangan: {len(pairwise_df)}, Signifikan: {len(sig)}")
     if len(sig) > 0:
         print(f"\n  {'Group 1':<15} {'Group 2':<15} {'Mean Diff':>10} {'t-stat':>10} {'p-value':>10} {'Sig?':>5}")
         print(f"  {'-'*15} {'-'*15} {'-'*10} {'-'*10} {'-'*10} {'-'*5}")
@@ -308,12 +308,12 @@ def main():
     f_macro, p_macro = run_anova({s: df_macro[df_macro['scenario'] == s]['login_time_ms'] for s in SCENARIO_ORDER})
     print_anova_result('Makro — login_time_ms', f_macro, p_macro)
 
-    # === TUKEY HSD ===
-    tukey_micro = run_tukey_hsd(df_micro, 'hashing_time_ms', 'scenario')
-    tukey_macro = run_tukey_hsd(df_macro, 'login_time_ms', 'scenario')
+    # === PAIRWISE WELCH T-TEST ===
+    pairwise_micro = run_pairwise_welch(df_micro, 'hashing_time_ms', 'scenario')
+    pairwise_macro = run_pairwise_welch(df_macro, 'login_time_ms', 'scenario')
 
-    print_tukey_table('Mikro — hashing_time_ms', tukey_micro)
-    print_tukey_table('Makro — login_time_ms', tukey_macro)
+    print_pairwise_table('Mikro — hashing_time_ms', pairwise_micro)
+    print_pairwise_table('Makro — login_time_ms', pairwise_macro)
 
     # === CHARTS ===
     print(f"\n{'='*90}")
@@ -388,9 +388,9 @@ def main():
     df_anova.to_csv(anova_csv, index=False)
     print(f"  ANOVA CSV:    {anova_csv}")
 
-    tukey_micro.to_csv(os.path.join(args.output_dir, 'tukey_micro.csv'), index=False)
-    tukey_macro.to_csv(os.path.join(args.output_dir, 'tukey_macro.csv'), index=False)
-    print(f"  Tukey CSV:    {args.output_dir}/tukey_micro.csv, tukey_macro.csv")
+    pairwise_micro.to_csv(os.path.join(args.output_dir, 'pairwise_micro.csv'), index=False)
+    pairwise_macro.to_csv(os.path.join(args.output_dir, 'pairwise_macro.csv'), index=False)
+    print(f"  Pairwise CSV: {args.output_dir}/pairwise_micro.csv, pairwise_macro.csv")
 
     print(f"\n{'='*90}")
     print(f"  ANALISIS SELESAI")

@@ -273,8 +273,8 @@ Script Python menghasilkan:
 |---|---|
 | `analysis_combined.csv` | Rekapitulasi statistik mikro + makro + overhead |
 | `anova_results.csv` | Hasil ANOVA per layer |
-| `tukey_micro.csv` | Pairwise comparison mikro (28 pasangan) |
-| `tukey_macro.csv` | Pairwise comparison makro (28 pasangan) |
+| `pairwise_micro.csv` | Pairwise Welch t-test mikro (28 pasangan) |
+| `pairwise_macro.csv` | Pairwise Welch t-test makro (28 pasangan) |
 
 ### Chart PNG (6 file)
 
