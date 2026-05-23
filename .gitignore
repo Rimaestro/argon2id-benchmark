@@ -19,3 +19,4 @@ yarn-error.log
 /database/database.sqlite
 /benchmark/results/
 /storage/app/benchmark/results_macro_*.csv
+__pycache__/
